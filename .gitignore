@@ -1,0 +1,6 @@
+.packages/
+.venv/
+app.zip
+__pycache__
+# Streamlit secrets（機密情報）
+.streamlit/secrets.toml
