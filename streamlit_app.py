@@ -1,7 +1,8 @@
 import streamlit as st
+import pandas as pd
 from common.hello import say_hello
 from common.snowflake_client import snowflake_connection, fetch_single_value
-import pandas as pd
+
 
 st.title(f"Snowflake Insights — {say_hello()}")
 
@@ -20,81 +21,120 @@ st.title(f"Snowflake Insights — {say_hello()}")
 # else:
 #     st.info("Snowflake の資格情報が設定されていません（.streamlit/secrets.toml を確認してください）。")
 
-# streamlit_app.py
-# streamlit_app.py
-import streamlit as st
-import pandas as pd
 
+# PEP8命名・構造改善: データ準備を関数化
+
+def create_sample_dataframe() -> pd.DataFrame:
+    """サンプル従業員データのDataFrameを返す。
+
+    Returns:
+        pd.DataFrame: id, 名前, 年齢, 所属, 選択 を列に持つデータ。
+    """
+    records = [
+        {"id": 1, "名前": "田中", "年齢": 28, "所属": "営業"},
+        {"id": 2, "名前": "鈴木", "年齢": 34, "所属": "開発"},
+        {"id": 3, "名前": "佐藤", "年齢": 41, "所属": "人事"},
+        {"id": 4, "名前": "高橋", "年齢": 25, "所属": "総務"},
+    ]
+    frame = pd.DataFrame(records)
+    if "選択" not in frame.columns:
+        frame["選択"] = False
+    return frame
+
+
+def render_selection_table(source_df: pd.DataFrame) -> pd.DataFrame:
+    """選択用チェックボックス付きテーブルを表示し、編集後のDataFrameを返す。
+
+    Args:
+        source_df (pd.DataFrame): 元データ
+
+    Returns:
+        pd.DataFrame: data_editor後（選択列がユーザ操作で更新された）DataFrame
+    """
+    return st.data_editor(
+        source_df,
+        key="employee_table",
+        use_container_width=True,
+        hide_index=True,
+        column_order=["選択", "id", "名前", "年齢", "所属"],
+        column_config={
+            "選択": st.column_config.CheckboxColumn(
+                "選択", help="この行を選択"
+            ),
+        },
+        disabled=["id", "名前", "年齢", "所属"],
+        num_rows="fixed",
+    )
+
+
+def open_selection_dialog(selected_df: pd.DataFrame) -> None:
+    """選択された行をフォーム付きダイアログで表示する。未選択なら警告。
+
+    Args:
+        selected_df (pd.DataFrame): 選択行のみを含むDataFrame（選択列=True）
+    """
+    display_df = selected_df.drop(columns=["選択"]).reset_index(drop=True)
+    dialog_title = "選択した行の送信フォーム"
+
+    if display_df.empty:
+        st.warning("行が選択されていません。")
+        return
+
+    def render_form_contents() -> None:
+        """ダイアログ内部のフォームUIを描画し、送信時は結果を表示。"""
+        st.write(f"選択行数: {len(display_df)} 行")
+        st.dataframe(display_df, use_container_width=True)
+        st.divider()
+        with st.form("submit_selected_rows"):
+            st.text_area(
+                "メモ (任意)",
+                key="memo",
+                placeholder="この送信に関するコメントを入力できます",
+            )
+            submitted = st.form_submit_button("送信", type="primary")
+            if submitted:
+                result_payload = {
+                    "rows": display_df.to_dict(orient="records"),
+                    "memo": st.session_state.get("memo", ""),
+                    "count": len(display_df),
+                }
+                st.success("送信しました (ダミー処理)")
+                st.json(result_payload)
+                st.stop()
+
+    if hasattr(st, "dialog"):
+        @st.dialog(dialog_title, width="large")
+        def _dialog_wrapper():
+            render_form_contents()
+        _dialog_wrapper()
+    else:
+        st.info(
+            "ダイアログ非対応バージョンのためページ内でフォーム表示しています。"
+        )
+        with st.expander(dialog_title, expanded=True):
+            render_form_contents()
+
+
+# ===== メイン処理部 =====
+
+# ページ設定とタイトル
 st.set_page_config(page_title="チェック付きデータフレームのサンプル", layout="centered")
 st.title("チェック付きデータフレーム + ダイアログ表示")
 
-# --- サンプルデータ ---
-data = [
-    {"id": 1, "名前": "田中", "年齢": 28, "所属": "営業"},
-    {"id": 2, "名前": "鈴木", "年齢": 34, "所属": "開発"},
-    {"id": 3, "名前": "佐藤", "年齢": 41, "所属": "人事"},
-    {"id": 4, "名前": "高橋", "年齢": 25, "所属": "総務"},
-]
-df = pd.DataFrame(data)
-
-# 選択列を追加（なければ）
-if "選択" not in df.columns:
-    df["選択"] = False
-
+# データ作成と表示
+employee_df = create_sample_dataframe()
 st.caption("行をチェックしてから下のボタンを押してください。")
+updated_df = render_selection_table(employee_df)
 
-# --- チェックボックスを一番左に配置して表示 ---
-edited_df = st.data_editor(
-    df,
-    key="table",
-    use_container_width=True,
-    hide_index=True,
-    column_order=["選択", "id", "名前", "年齢", "所属"],  # 先頭に「選択」
-    column_config={
-        "選択": st.column_config.CheckboxColumn("選択", help="この行を選択"),
-    },
-    disabled=["id", "名前", "年齢", "所属"],  # チェック以外は編集不可
-    num_rows="fixed",
-)
+# 選択行抽出
+selected_rows_df = updated_df[updated_df["選択"]]
 
-# --- 選択行の抽出 ---
-selected_rows = edited_df[edited_df["選択"]]
-selected_count = len(selected_rows)
-
-# --- ダイアログ表示の互換関数（st.dialog / experimental_dialog / 代替） ---
-def show_selected_dialog(sel_df: pd.DataFrame) -> None:
-    disp_df = sel_df.drop(columns=["選択"]).reset_index(drop=True)
-    title = "選択した行の情報"
-
-    if hasattr(st, "dialog"):  # 新API
-        @st.dialog(title, width="large")
-        def _dlg():
-            st.write(f"選択行数: {len(disp_df)} 行")
-            st.dataframe(disp_df, use_container_width=True)
-        _dlg()
-
-    elif hasattr(st, "experimental_dialog"):  # 旧API
-        @st.experimental_dialog(title)
-        def _dlg():
-            st.write(f"選択行数: {len(disp_df)} 行")
-            st.dataframe(disp_df, use_container_width=True)
-        _dlg()
-
-    else:
-        # ダイアログAPIが無い場合の簡易フォールバック
-        st.warning("このStreamlitバージョンではダイアログAPIが見つかりません。ページ内に展開して表示します。")
-        with st.expander(title, expanded=True):
-            st.write(f"選択行数: {len(disp_df)} 行")
-            st.dataframe(disp_df, use_container_width=True)
-
-# --- ボタン（未選択なら無効） ---
-btn = st.button(
+# ボタン & ダイアログ
+open_button_clicked = st.button(
     "選択した行を確認",
     type="primary",
-    disabled=(selected_count == 0),
+    disabled=selected_rows_df.empty,
     help="1行以上チェックすると押せます",
 )
-
-# --- ボタン押下時にダイアログを開く ---
-if btn:
-    show_selected_dialog(selected_rows)
+if open_button_clicked:
+    open_selection_dialog(selected_rows_df)
