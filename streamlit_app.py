@@ -98,9 +98,11 @@ def open_selection_dialog(selected_df: pd.DataFrame) -> None:
                     "memo": st.session_state.get("memo", ""),
                     "count": len(display_df),
                 }
+                # セッションに保存して再実行（ダイアログを閉じる）
+                st.session_state["last_submission"] = result_payload
                 st.success("送信しました (ダミー処理)")
-                st.json(result_payload)
-                st.stop()
+                # rerun により dialog が閉じる想定
+                st.rerun()
 
     if hasattr(st, "dialog"):
         @st.dialog(dialog_title, width="large")
@@ -138,3 +140,8 @@ open_button_clicked = st.button(
 )
 if open_button_clicked:
     open_selection_dialog(selected_rows_df)
+
+# 送信結果があればトップに表示
+if "last_submission" in st.session_state:
+    st.success("前回の送信が完了しました")
+    # st.json(st.session_state["last_submission"])  # デバッグ/確認用表示
