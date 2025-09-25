@@ -1,0 +1,73 @@
+name: Deploy to Snowflake
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || pip install streamlit snowflake-snowpark-python
+
+      - name: Install Snowflake CLI
+        run: |
+          wget https://sfc-repo.snowflakecomputing.com/snowsql/bootstrap/cli/linux_x86_64/snowflake-cli_latest_amd64.deb
+          sudo dpkg -i snowflake-cli_latest_amd64.deb
+
+      - name: Deploy to Snowflake
+        env:
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
+        run: |
+          # Snowflake CLIの認証設定
+          snowflake config set account $SNOWFLAKE_ACCOUNT
+          snowflake config set username $SNOWFLAKE_USER
+          snowflake config set password $SNOWFLAKE_PASSWORD
+          snowflake config set role $SNOWFLAKE_ROLE
+          snowflake config set warehouse $SNOWFLAKE_WAREHOUSE
+          snowflake config set database $SNOWFLAKE_DATABASE
+          snowflake config set schema $SNOWFLAKE_SCHEMA
+
+          # ここにデプロイコマンドを記述（例: SQLファイルの実行など）
+          # snowflake sql -f path/to/deploy.sql
+          echo "Snowflake CLIでのデプロイ処理をここに記述"
+
+      - name: Deploy to Snowflake Streamlit
+        env:
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
+        run: |
+          snow config init --non-interactive \
+            --account-name $SNOWFLAKE_ACCOUNT \
+            --username $SNOWFLAKE_USER \
+            --password $SNOWFLAKE_PASSWORD \
+            --role $SNOWFLAKE_ROLE \
+            --warehouse $SNOWFLAKE_WAREHOUSE \
+            --database $SNOWFLAKE_DATABASE \
+            --schema $SNOWFLAKE_SCHEMA
+
+          # Streamlitアプリのデプロイ
+          snow streamlit deploy app --overwrite
