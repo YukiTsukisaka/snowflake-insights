@@ -1,5 +1,6 @@
 name: Deploy to Snowflake
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
