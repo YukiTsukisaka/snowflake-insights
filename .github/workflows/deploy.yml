@@ -5,7 +5,7 @@ on:
       - main
 jobs:
   deploy:
-    runs-on: ${{ vars.RUNNER_LABELS || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["ubuntu-latest"]') }}
     environment: Production
     steps:
       - name: Ubuntu Version
