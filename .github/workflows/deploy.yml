@@ -16,6 +16,8 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["ubuntu-latest"]') }}
     environment: Production
     steps:
+      - name: Ubuntu Version
+        run: lsb_release -a
       - name: Checkout repository
         uses: actions/checkout@v3
 
