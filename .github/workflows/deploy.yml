@@ -1,26 +1,17 @@
 name: Deploy to Snowflake
-
 on:
   push:
     branches:
       - main
-
-env:
-  # GitHub Repository/Environment Variables に RUNNER_LABELS を登録してください（JSON 配列）
-  # 例: ["ubuntu-latest"] または ["self-hosted","linux","X64"]
-  # フォールバックは ["ubuntu-latest"]
-  RUNNER_LABELS: ${{ vars.RUNNER_LABELS || '["ubuntu-latest"]' }}
-
 jobs:
   deploy:
-    runs-on: ${{ fromJSON((vars.RUNNER_LABELS && (startsWith(vars.RUNNER_LABELS, '[') && vars.RUNNER_LABELS || format('["{0}"]', vars.RUNNER_LABELS))) || '["ubuntu-latest"]') }}
+    runs-on: ${{ vars.RUNNER_LABELS || 'ubuntu-latest' }}
     environment: Production
     steps:
       - name: Ubuntu Version
         run: lsb_release -a
       - name: Checkout repository
         uses: actions/checkout@v3
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
