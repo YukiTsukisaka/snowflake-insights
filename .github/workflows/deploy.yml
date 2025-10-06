@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+env:
+  RUNNER_LABELS: ${{ vars.RUNNER_LABELS }}
 jobs:
   deploy:
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["ubuntu-latest"]') }}
+    runs-on: ${{ env.RUNNER_LABELS }}
     environment: Production
     steps:
       - name: Ubuntu Version
