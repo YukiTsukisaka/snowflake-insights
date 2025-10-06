@@ -8,7 +8,7 @@ env:
   RUNNER_LABELS: ${{ vars.RUNNER_LABELS }}
 jobs:
   deploy:
-    runs-on: ${{ env.RUNNER_LABELS }}
+    runs-on: ${{ fromJson(vars.RUNNER_LABELS) }}
     environment: Production
     steps:
       - name: Ubuntu Version
